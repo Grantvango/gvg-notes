@@ -294,18 +294,118 @@ Host target-server
 - [ ] Logging enabled and monitored
 - [ ] Client SSH config optimized
 - [ ] Key permissions set correctly
+- [ ] Unattended security updates configured
 - [ ] Regular security updates applied
 
 ### 8. Maintenance Tasks
 
-#### Regular Security Updates
+#### Automated Security Updates (Unattended Upgrades)
+
+Configure automatic installation of security updates to keep your system protected:
+
+```bash
+# Install unattended-upgrades package
+sudo apt update && sudo apt install unattended-upgrades
+
+# Enable automatic updates
+sudo dpkg-reconfigure -plow unattended-upgrades
+```
+
+Configure `/etc/apt/apt.conf.d/50unattended-upgrades`:
+
+```bash
+# Edit the configuration file
+sudo nano /etc/apt/apt.conf.d/50unattended-upgrades
+```
+
+Recommended configuration:
+
+```bash
+// Automatically upgrade packages from these (origin:archive) pairs
+Unattended-Upgrade::Allowed-Origins {
+    "${distro_id}:${distro_codename}-security";
+    "${distro_id}ESMApps:${distro_codename}-apps-security";
+    "${distro_id}ESM:${distro_codename}-infra-security";
+    // Optional: include stable updates (be cautious)
+    // "${distro_id}:${distro_codename}-updates";
+};
+
+// Packages that should never be automatically upgraded
+Unattended-Upgrade::Package-Blacklist {
+    "kernel*";
+    "linux-*";
+    "openssh-server";
+    // Add other critical packages you want to manually control
+};
+
+// Email configuration for notifications
+Unattended-Upgrade::Mail "your-email@example.com";
+Unattended-Upgrade::MailOnlyOnError "true";
+
+// Automatically remove unused dependencies
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+
+// Automatically remove unused kernel packages
+Unattended-Upgrade::Remove-New-Unused-Dependencies "true";
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+
+// Automatically reboot if required (be careful with this)
+Unattended-Upgrade::Automatic-Reboot "false";
+// If you enable reboots, set a time
+// Unattended-Upgrade::Automatic-Reboot-Time "02:00";
+
+// Enable logging
+Unattended-Upgrade::SyslogEnable "true";
+Unattended-Upgrade::SyslogFacility "daemon";
+
+// Bandwidth limit for downloads (in KB/sec)
+Acquire::http::Dl-Limit "200";
+```
+
+Configure automatic update intervals in `/etc/apt/apt.conf.d/20auto-upgrades`:
+
+```bash
+# Edit auto-upgrades configuration
+sudo nano /etc/apt/apt.conf.d/20auto-upgrades
+```
+
+```bash
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Download-Upgradeable-Packages "1";
+APT::Periodic::AutocleanInterval "7";
+APT::Periodic::Unattended-Upgrade "1";
+```
+
+#### Manual Security Updates
 
 ```bash
 # Update system packages
 sudo apt update && sudo apt upgrade
 
+# Install only security updates
+sudo apt update && sudo apt upgrade -s | grep -i security
+
 # Check for SSH-specific updates
 apt list --upgradable | grep ssh
+
+# Check what unattended-upgrades would do (dry run)
+sudo unattended-upgrades --dry-run --debug
+```
+
+#### Monitor Unattended Upgrades
+
+```bash
+# Check unattended-upgrades status
+sudo systemctl status unattended-upgrades
+
+# View recent upgrade logs
+sudo tail -f /var/log/unattended-upgrades/unattended-upgrades.log
+
+# Check if reboot is required
+ls /var/run/reboot-required
+
+# View packages that were upgraded
+grep "upgraded" /var/log/apt/history.log | tail -10
 ```
 
 #### Key Rotation
